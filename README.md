@@ -1,4 +1,4 @@
-# Code Respository for the M.SC. thesis completed by T. Chase Clark
+# Code Respository for the M.Sc. thesis completed by T. Chase Clark
 
 ## Any code related questions should be directed to chasetclark@gmail.com
 
