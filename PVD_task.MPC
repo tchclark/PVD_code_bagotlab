@@ -1,0 +1,536 @@
+\ Three Tone Combined Appetitive / Aversive Conditioning with Pellets for Miniscopes
+\ Chase Clark 03/12/2018
+\ Adapeted from Appetitive_Cond_Miniscope 29/05/2018
+\ CSR+ -> Clicker
+\ CSS+ -> Tone
+\ CS-  -> WN
+
+
+\ Inputs
+^HeadEntry  = 6
+
+
+\ Outputs
+^Reinforcer = 3
+^Shock      = 5
+^Scope      = 9
+^Fan        = 6
+^CSA        = 13
+^CSB        = 14
+
+\ A() = Control Variables with Assigned Aliases as Defined
+Var_Alias Tone Frequency (Hz)            = A(0)  \ Default = 9000 Hz
+Var_Alias Cue Amplitude (dB)             = A(1)  \ Default = 75 dB
+Var_Alias Cue Duration (sec)             = A(2)  \ Default = 15 seconds
+Var_Alias Clicker Frequency (Hz)         = A(3)  \ Default = 5 Hz
+Var_Alias White Noise (non-zero = Tone)  = A(4)  \ Default = 0
+Var_Alias Number of CSR+ Trials          = A(5)  \ Default = 12
+Var_Alias Number of CSS+ Trials          = A(6)  \ Default = 4
+Var_Alias Number of CS- Trials           = A(7)  \ Default = 4
+Var_Alias Habituation Length (sec)       = A(8)  \ Default = 120 seconds
+Var_Alias Allow US                       = A(9)  \ Default = 1
+
+
+
+^ToneFreq  = 0
+^CueAmp    = 1
+^CueDur    = 2
+^ClickFreq = 3
+^WN        = 4
+^CSRpl     = 5
+^CSSpl     = 6
+^CSng      = 7
+^Hab       = 8
+^AllowUS   = 9
+
+
+
+\ List of Data Variables
+\   B()  = Trial Data
+\    B(I)   = Trial Number
+\    B(I+1) = Trial Type -> 1: CSR+ 2: CS- 3: CSS+
+\    B(I+2) = Number of Head Entries during CS
+\    B(I+3) = Number of Head Entries during ITI
+\    B(I+4) = Latency to first Head Entry during CS
+\    B(I+5) = Latency to first Head Entry during ITI
+\    B(I+6) = Time stamp of CS presentation
+\    B(I+7) = Length of following ITI
+\    B(I+8)= US Delivery Delay
+\
+\   Q() = Head Entry time stamps
+\    Q(P)   = Trial Number
+\    Q(P+1) = State During Head Entry (0 = CS, 1 = ITI, 2 = Hab, etc)
+\    Q(P+2) = Time of Head Entry
+\    Q(P+3) = Time of Head Exit
+\
+\   H() = Event Data
+\    H(0) = Total number of Head Entries
+\
+\   R() = HE during Pre CS or Pre US
+\    R(T)   = Trial Number
+\    R(T+1) = Trial Type
+\    R(T+2) = Number of HE PreCS per trial
+\    R(T+3) = Number of HE PreUS per trial
+\    R(T+4) = Time in foodport PreCS
+\    R(T+5) = Time in Foodport PreUS
+\
+\   V(C) = Consumption Time Stamps
+
+\Working Varaibles
+\ C = Number of CSR+ Presentations
+\ D = Number of CS- Presentations
+\ E = Number of CSS+ Presentations
+\ I = Trial Data Index for B()
+\ K = Tone Played from List W (1 - CSR+, 2 - CS-, 3 - CSS+)
+\ J = State: CS (0), ITI (1), Habituatiom (2), PreCS (3), Reward Period (4)
+\ M = Trial Number
+\ N = Indicates if a head entry occured during a CS or ITI
+\ O = ITI Selected from List X
+\ T = Index for R
+\ U = US Delay selected from LIST G
+\ P = Head Entry data Index for Q()
+\ LIST W = Tone selection for App/Avers
+\ LIST X = ITI Selection list
+\ LIST G = US Interval list
+\
+\Timers
+\ L = ITI and CS Timer - For Latency
+\ S = Session Timer
+\
+\Z Pulses
+\    Z1 = CSR+ Trial
+\    Z2 = CS- Trial
+\    Z3 = CSS+ Trial
+\    Z5 = Managing Pre CS HE
+\    Z6 = Start of CS (For CS time stamp and HE Latency and recording)
+\    Z7 = End of CS
+\    Z8 = Begin reward timer
+\    Z9 = Managing Pre CS Hab HE
+\    Z10 = Start of ITI
+\    Z11 = End of ITI/ select next tone
+\    Z12 = Reward Delivered
+\    Z13 = End Pre US Delay Period
+\    Z14 = Begin Shock Delay Timer
+\    Z15 = Turn Miniscope on
+\    Z32 = End Program
+
+LIST W = 1,1,2,1,1,3
+LIST X = 135, 157.5, 180, 202.5, 225
+LIST G = 10, 11.25, 12.5, 13.75, 14.9
+
+DIM A = 13
+DIM B = 9999
+DIM Q = 9999
+DIM R = 9999
+DIM H = 1
+DIM V = 50
+
+DISKCOLUMNS = 9
+
+\***************************************************
+\              Start and Tone Selection
+\***************************************************
+S.S.1,
+S1,
+  0.01": SET A(^ToneFreq) = 9000, A(^CueAmp)  = 75, A(^CueDur) = 15;
+         SET A(^ClickFreq)= 5,    A(^WN)      = 0,  A(^Hab)    = 120;
+         SET A(^CSRpl)    = 12,   A(^CSng)    = 4,  A(^CSSpl)  = 4;
+         SET A(^AllowUS)  = 1; ON ^CSA, ^CSB, ^Fan; ---> S2
+
+S2,     \ First Statement: Wait for START signal, initialize ANL-926.
+        \
+        \ Second Statement: Update screen display with default values
+        \ for Control Variables.  This will show any changes made via
+        \ the "Configure | Change Variables" Window prior to START.
+  #START: CLEAR 1,8;
+          ~SetRack(MG, 1);~;                \ The ANL-926 cards are in Rack 1
+          ~InitANL926;~;                    \ Reset ANL-926
+          ~SetClickFreq(MG, BOX, A[0]);~;   \ Set default frequency
+          ~SetAmp(MG, BOX, A[1]);~;         \ Initialize Amplitude (dB)
+          ~SetRF(MG, BOX, 5);~;             \ Initialize Rise\Fall Time (ms)
+          ~SetDur(MG, BOX, (A[2]*1000));~;  \ Initialize Duration (ms)
+          SET J = 2; Z9; ---> S3
+S3,
+  0.01": SET L = L + 0.01;
+         SHOW 3,Habituation Timer,L;
+         IF L < A(^Hab) [@ContHab, @Start]
+          @ContHab: ---> SX
+
+          @Start: SET L = 0 ---> S4
+S4,
+  0.01": RANDD K = W;
+      SET B(I+1) = K;
+      IF K < 3 [@App, @Aver]
+         @App: IF K = 1 [@CSR+, @CSR-] \Appetitive training tirals
+                  @CSR+: IF C < A(^CSRpl) [@Cont, @MaxTimesPlayed]
+                            @Cont: ~SetClickFreq(MG, BOX, A[3]);~; \5Hz Clicker
+                                   ~SetAmp(MG, BOX, A[1]);~;
+                                   ADD C, M; SET B(I) = M, B(I+9) = -987.987; Z1 ---> S5
+                            @Max: ---> S4
+
+                  @CS-:  IF D < A(^CSng) [@Cont, @MaxTimesPlayed]
+                            @Cont: ~SetFreq(MG, BOX, A[4]);~; \WN
+                                   ~SetAmp(MG, BOX, A[1]);~;
+                                   ADD D, M; SET B(I) = M, B(I+9) = -987.987; Z2 ---> S5
+                            @Max: ---> S4
+         @Aver: IF E < A(^CSSpl) [@Cont, @MaxTimesPlayed]
+                            @Cont: ~SetFreq(MG, BOX, A[0]);~; \Pure Tone
+                                   ~SetAmp(MG, BOX, A[1]);~;
+                                   ADD E, M; SET B(I) = M, B(I+9) = -987.987; Z3 ---> S5
+                            @Max: ---> S4
+
+S5, \Wait to start next trial
+  #Z11: ---> S6
+S6,
+  0.01": SET I = I+9;
+  If M >= (A(^CSRpl)+A(^CSSpl)+A(^CSng)) [@END, @CONT]
+      @END: Z32 ---> SX
+      @CONT: ---> S4
+
+
+\***************************************************
+\              CSR+ Trial
+\***************************************************
+S.S.2,
+S1,
+  #Z1: ---> S2
+
+S2,
+  0.01": SHOW 1,Trial Number,M, 2,Trial Type,K;
+         ~ClickOn(MG, BOX);~; OFF ^CSA, ^CSB; Z6; Z8 ---> S3 \Begin recording CS Head Entries, OFF CSA turns CSA light on
+
+S3, \Play Tone
+  0.01": SET L = L + 0.01;
+         SHOW 3,Trial Timer,L;
+         IF L >= A(^CueDur) [@T, @F]
+            @T: ~ClickOff(MG, BOX);~; ON ^CSA, ^CSB;
+                SET L = 0; Z7 ---> S4
+            @F: ---> SX
+S4, \Select random ITI
+  0.01": RANDD O = X; SET B(I+7) = O; Z10; Z5 ---> S5
+
+S5, \Run ITI
+  0.01": SET L = L + 0.01;
+         SHOW 3,ITI Timer,L;
+         IF L >= O [@T, @F]
+            @T: SET L = 0; Z11 ---> S1
+            @F: ---> SX
+\***************************************************
+\              CS- Trial
+\***************************************************
+S.S.3,
+S1,
+  #Z2: ---> S2
+
+S2,
+  0.01": SHOW 1,Trial Number,M, 2,Trial Type,K;
+         ~OnDur(MG, BOX, A[2]*1000);~; OFF ^CSA, ^CSB; Z6 ---> S3 \Begin recording CS Head Entries, OFF CSB turns CSB light on
+
+S3, \Play Tone
+  0.01": SET L = L + 0.01;
+         SHOW 3,Trial Timer,L;
+         IF L >= A(^CueDur) [@T, @F]
+            @T: ~ToneOff(MG, BOX);~; ON ^CSA, ^CSB;
+                SET L = 0; Z7 ---> S4 \No US delivery
+            @F: ---> SX
+S4, \Select random ITI
+  0.01": RANDD O = X; SET B(I+7) = O; Z10; Z5 ---> S5
+
+S5, \Run ITI
+  0.01": SET L = L + 0.01;
+         SHOW 3,ITI Timer,L;
+         IF L >= O [@T, @F]
+            @T: SET L = 0; Z11 ---> S1
+            @F: ---> SX
+
+\***************************************************
+\              CSS+ Trial
+\***************************************************
+S.S.4,
+
+S1,
+  #Z3: ---> S2
+
+S2,
+  0.01": SHOW 1,Trial Number,M, 2,Trial Type,K;
+         ~OnDur(MG, BOX, A[2]*1000);~; OFF ^CSA, ^CSB; Z6; Z14 ---> S3 \Begin recording CS Head Entries, Send Z pulse to Shock Control and Switch
+S3,
+  0.01": SET L = L + 0.01;
+         SHOW 3,Trial Timer,L;
+         IF L >= A(^CueDur) [@T, @F]
+            @T: ~ToneOff(MG, BOX);~; ON ^CSA, ^CSB;
+                SET L = 0; Z7 ---> S4
+            @F: ---> SX
+S4, \Select random ITI
+  0.01": RANDD O = X; SET B(I+7) = O; Z10; Z5 ---> S5
+
+
+S5, \Run ITI
+  0.01": SET L = L + 0.01;
+         SHOW 3,ITI Timer,L;
+         IF L >= O [@T, @F]
+            @T: SET L = 0; Z11 ---> S1
+            @F: ---> SX
+
+\***************************************************
+\              Reinforcer Control (reinforcer delivered variably within last 5 sec of CS)
+\***************************************************
+S.S.6,
+S1,
+  #Z8: IF A(^AllowUS) = 1 [@US, @NoUS]
+                  @T: ---> S2
+                  @F: ---> S1
+S2,
+  0.01": RANDD U = G; SHOW 8, Delay, U; SET B(I+8) = U ---> S3
+S3,
+  0.01": IF U > L [@TRUE, @FALSE]
+              @T: ---> S3
+
+              @F: ON ^Reinforcer; Z12 ---> S4
+S4,
+  0.05": OFF ^Reinforcer ---> S1
+\***************************************************
+\              Shock Control (shock delivered variably within last 5 sec of CS)
+\***************************************************
+S.S.7,
+S1,
+  #Z14: IF A(^AllowUS) = 1 [@US, @NoUS]
+                  @T: ---> S2
+                  @F: ---> S1
+S2,
+  0.01": RANDD U = G; SHOW 8, Delay, U; SET B(I+8) = U ---> S3
+S3,
+  0.01": IF U > L [@TRUE, @FALSE]
+              @T: ---> S3
+
+              @F: ON ^Shock ---> S4
+S4,
+  0.5": OFF ^Shock ---> S1
+\***************************************************
+\           Head Entry Latency during CS
+\***************************************************
+S.S.8,
+S1,
+  #Z6: ---> S2
+
+S2,
+  #R^HeadEntry: SET B(I+4) = L ---> S1
+  #Z7: SET B(I+4) = 999 ---> S1 \999 in the trial data will act as a NaN value to indicate no latency
+\***************************************************
+\           Head Entry Count Before US Delay period
+\***************************************************
+S.S.9,
+S1,
+  #Z6: SET J = 0 ---> S2 \Indicates now delivering CS
+
+S2,
+  #R^HeadEntry: ADD B(I+2), R(T+3) ---> S3 \HE counted in pre US delivery index and general HE index
+  #Z13: SET R(T) = M, R(T+1) = K, T = T+6, R(T+6) = -987.987 ---> S1
+
+S3,
+  0.045": ---> S4
+  #Z13: SET R(T) = M, R(T+1) = K, R(T+5) = R(T+5) + 0.046, T = T+6, R(T+6) = -987.987 ---> S1
+
+S4,
+  #R^HeadEntry: SET R(T+5) = R(T+5) + 0.046 ---> S3 \HE still occuring
+  #Z13: SET R(T) = M, R(T+1) = K, R(T+5) = R(T+5) + 0.046, T = T+6, R(T+6) = -987.987 ---> S1 \Leaving state, record duration
+  0.05": SET R(T+5) = R(T+5) + 0.046 ---> S2 \Head has left port, record length and go back to detection
+\***************************************************
+\           Head Entry Count during US Delay Period
+\***************************************************
+S.S.21,
+S1,
+  #Z6: ---> S2
+S2,
+  0.01": IF 10 > L [@Cont, @EndPreUS]
+         @Cont: ---> S2
+
+         @EndPreUS: Z13; SET J = 4 ---> S3
+S3,
+  #R^HeadEntry: ADD B(I+2) ---> S4 \After 10 seconds of CS, HE are only counted into general HE index
+  #Z7: ---> S1
+
+S4,
+  0.045": ---> S5
+  #Z7: ---> S1
+
+S5,
+  #R^HeadEntry: ---> S4
+  #Z7: ---> S1
+  0.05": ---> S3
+\***************************************************
+\           Head Entry Latency during ITI
+\***************************************************
+S.S.10,
+S1,
+  #Z10: ---> S2
+
+S2,
+  #R^HeadEntry: SET B(I+5) = L ---> S1
+  #Z11: SET B(I+5) = 999 ---> S1 \999 in the trial data will act as a NaN value to indicate no latency
+\***************************************************
+\           Head Entry Count during ITI
+\***************************************************
+S.S.11,
+S1,
+  #Z10: SET J = 1 ---> S2 \Indicates now in ITI
+
+S2,
+  #R^HeadEntry: ADD B(I+3) ---> S3
+  #Z11: ---> S1
+
+S3,
+  0.045": ---> S4
+  #Z11: ---> S1
+
+S4,
+  #R^HeadEntry: ---> S3
+  #Z11: ---> S1
+  0.05": ---> S2
+\***************************************************
+\               Head Entry and Exit Time Stamps
+\***************************************************
+S.S.12,
+S1,
+  #START: ---> S2
+S2,
+  #R^HeadEntry: ADD H(0); SET Q(P) = M, Q(P+1) = J, Q(P+2) = S ---> S3 \Q(P+4) = -987.987, P = P + 4 ---> S2 \Records time at head entry and the current trial/state
+
+S3,
+  0.045": ---> S4
+
+S4,
+  #R^HeadEntry: ---> S3
+  0.05": SET Q(P+3) = S - 0.05, Q(P+4) = -987.987, P = P + 4 ---> S2
+\***************************************************
+\               CS Presnetation Time Stamp
+\***************************************************
+S.S.13,
+S1,
+  #Z6: SET B(I+6) = S ---> SX
+
+\***************************************************
+\               Session Timer
+\***************************************************
+S.S.14,
+S1,
+  #START: ---> S2
+
+S2,
+  0.01": SET S = S + 0.01; SHOW 4, Session Timer, S ---> SX
+\***************************************************
+\               Miniscope Logic (On 15 Sec before CS onset until 15 Sec after CS offset)
+\***************************************************
+S.S.15,
+S1, \Upon either start of Hab or ITI, start countdown timer
+  #Z9: ---> S2
+  #Z5: ---> S3
+
+S2,
+  0.01": IF 15 < (A(^Hab)-L) [@Cont, @PreCS]
+               @Cont: ---> S2
+
+               @PreCS: Z15 ---> S1
+
+S3,
+  0.01": IF M < (A(^CSRpl)+A(^CSng)+A(^CSSpl)) [@Record, @Dont] \Don't record pre cs for last ITI (CS doesn't exist)
+               @Rec: ---> S4
+
+               @Dont: ---> S1
+S4,
+  0.01": IF 15 < (O-L) [@Cont, @PreCS]
+               @Cont: ---> S4
+
+               @PreCS: Z15 ---> S1 \Tell Miniscope to turn on for 45 sec
+
+\***************************************************
+\               Miniscope Power
+\***************************************************
+S.S.22,
+S1,
+  #Z15: ON^Scope ---> S2
+
+S2,
+  45": OFF^Scope ---> S1
+
+\***************************************************
+\               End Session
+\***************************************************
+S.S.16,
+S1,
+  #Z32: SET B(I+9) = -987.987; SET Q(P+3) =-987.987; SET R(T+4) = -987.987;
+        OFF ^Reinforcer, ^Fan;
+        ~ToneOff(MG, BOX);~ ---> STOPSAVE
+\***************************************************
+\               Pre CS HE Counter Habituation
+\***************************************************
+S.S.17,
+S1,
+#Z9: ---> S2
+
+S2,
+  0.01": IF (A(^CueDur)-5) < (A(^Hab)-L) [@Cont, @PreCS]
+               @Cont: ---> S2
+
+               @PreCS: SET J = 3 ---> S3
+
+S3,
+  #R^HeadEntry: ADD R(T+2) ---> S4
+  #Z6: ---> S1
+
+S4,
+  0.045": ---> S5
+  #Z6: SET R(T+4) = R(T+4) + 0.046 ---> S1
+S5,
+  #R^HeadEntry: SET R(T+4) = R(T+4) + 0.046 ---> S4
+  #Z6: SET R(T+4) = R(T+4) + 0.046 ---> S1
+  0.05": SET R(T+4) = R(T+4) + 0.046 ---> S3
+
+\***************************************************
+\               Pre CS HE Counter
+\***************************************************
+S.S.18,
+S1,
+#Z5: ---> S2
+
+S2,
+  0.01": IF (A(^CueDur)-5) < (O-L) [@Cont, @PreCS]
+               @Cont: ---> S2
+
+               @PreCS: SET J = 3 ---> S3
+
+S3,
+  0.01": IF M < (A(^CSRpl)+A(^CSng)+A(^CSSpl)) [@Record, @StopRec] \Don't record pre cs for last ITI (CS doesn't exist)
+               @Rec: ---> S4
+
+               @StopRec: ---> S1
+S4,
+  #R^HeadEntry: ADD R(T+2) ---> S5
+  #Z11: ---> S1
+
+S5,
+  0.045": ---> S6
+  #Z11: SET R(T+4) = R(T+4) + 0.046 ---> S1
+
+S6,
+  #R^HeadEntry: SET R(T+4) = R(T+4) + 0.046 ---> S5
+  #Z11: SET R(T+4) = R(T+4) + 0.046 ---> S1
+  0.05": SET R(T+4) = R(T+4) + 0.046 ---> S4
+
+\***************************************************
+\               Consumption Time Stamp
+\***************************************************
+S.S.19, \Record time stamp of first HE after pellet delivered
+S1,
+  #Z12: ---> S2
+S2,
+  #R^HeadEntry: SET V(C-1) = S ---> S1
+
+\***************************************************
+\               Update Screen
+\***************************************************
+S.S.20,
+S1,
+  0.1": SHOW 5,Head Entries,H(0);
+        SHOW 6,ITI Length,O;
+        SHOW 7,State,J ---> SX

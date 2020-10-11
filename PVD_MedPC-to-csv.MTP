@@ -1,0 +1,170 @@
+21
+8
+Edit Mode
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+Header Titles
+StartDate
+StartTime
+Subject #
+Experiment/Day
+Total HE
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Header Elements
+!StartDate
+!StartTime:
+Subject
+Experiment
+H(0)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Column Titles
+Trial #
+Trial Type
+CS HE
+CS HE Lat
+ITI HE
+ITI HE Lat
+CS Time
+ITI Length
+US Delay
+HE Trial #
+HE State
+HE Timestamp
+HE Exit Timestamp
+T HE Trial
+T HE Type
+Pre CS HE
+Pre US HE
+Pre CS time
+Pre US time
+Consumption Timestamp
+1st Column Element
+B(0)
+B(1)
+B(2)
+B(4)
+B(3)
+B(5)
+B(6)
+B(7)
+B(8)
+Q(0)
+Q(1)
+Q(2)
+Q(3)
+R(0)
+R(1)
+R(2)
+R(3)
+R(4)
+R(5)
+V(0)
+Increment
+9
+9
+9
+9
+9
+9
+9
+9
+9
+4
+4
+4
+4
+6
+6
+6
+6
+6
+6
+1
+Last Column Element
+B(9999)
+B(9999)
+B(9999)
+B(9999)
+B(9999)
+B(9999)
+B(9999)
+B(9999)
+B(9999)
+Q(9999)
+Q(9999)
+Q(9999)
+Q(9999)
+R(9999)
+R(9999)
+R(9999)
+R(9999)
+R(9999)
+R(9999)
+V(50)
